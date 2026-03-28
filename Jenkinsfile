@@ -7,7 +7,7 @@ pipeline {
         IMAGE_TAG  = "latest"
         EC2_USER   = "ubuntu"
         EC2_IP     = "13.232.5.50"
-        SSH_KEY    = "/var/lib/jenkins/.ssh/deploy-ec2.pem"
+        SSH_KEY    = "/var/lib/jenkins/.ssh/deploy-ec2.pem" // Make sure this file exists
         AWS_REGION = "ap-south-1"
     }
 
@@ -53,16 +53,14 @@ pipeline {
 
         stage('Deploy to EC2') {
             steps {
-                sshagent(['deploy-ec2-key']) {
-                    sh """
-                        ssh -o StrictHostKeyChecking=no -i ${SSH_KEY} ${EC2_USER}@${EC2_IP} \\
-                        "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY} && \\
-                        docker pull ${ECR_REGISTRY}/${IMAGE_NAME}:latest && \\
-                        docker stop website-demo || true && \\
-                        docker rm website-demo || true && \\
-                        docker run -d --name website-demo -p 80:80 ${ECR_REGISTRY}/${IMAGE_NAME}:latest"
-                    """
-                }
+                sh """
+                    ssh -o StrictHostKeyChecking=no -i ${SSH_KEY} ${EC2_USER}@${EC2_IP} \\
+                    "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY} && \\
+                    docker pull ${ECR_REGISTRY}/${IMAGE_NAME}:latest && \\
+                    docker stop website-demo || true && \\
+                    docker rm website-demo || true && \\
+                    docker run -d --name website-demo -p 80:80 ${ECR_REGISTRY}/${IMAGE_NAME}:latest"
+                """
             }
         }
     }
