@@ -9,6 +9,8 @@ pipeline {
         IMAGE_URI = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}:${IMAGE_TAG}"  
         LATEST_URI = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}:latest"  
         DEPLOY_SERVER = '13.232.5.50'  
+        SSH_USER = 'ubuntu'  
+        SSH_KEY = '/var/lib/jenkins/.ssh/deploy-ec2.pem' // path to your PEM key on Jenkins server
     }  
 
     stages {  
@@ -36,8 +38,9 @@ pipeline {
         stage('Login to ECR') {  
             steps {  
                 sh '''  
-                    aws ecr get-login-password --region $AWS_REGION | 
-                    docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+                    aws ecr get-login-password --region $AWS_REGION | \
+                    docker login --username AWS --password-stdin \
+                    $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com  
                 '''  
             }  
         }  
@@ -53,17 +56,15 @@ pipeline {
 
         stage('Deploy to EC2') {  
             steps {  
-                sshagent(['deploy-ec2-key']) {  
-                    sh '''  
-                        ssh -o StrictHostKeyChecking=no ubuntu@$DEPLOY_SERVER "
+                sh '''
+                    ssh -o StrictHostKeyChecking=no -i $SSH_KEY $SSH_USER@$DEPLOY_SERVER "
                         aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com &&
                         docker pull $LATEST_URI &&
                         docker stop website-demo || true &&
                         docker rm website-demo || true &&
                         docker run -d --name website-demo -p 80:80 $LATEST_URI
-                        "
-                    '''  
-                }  
+                    "
+                '''  
             }  
         }  
     }  
