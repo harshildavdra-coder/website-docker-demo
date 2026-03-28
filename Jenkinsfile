@@ -50,8 +50,8 @@ pipeline {
             docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/$ECR_REPO:latest
             docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/$ECR_REPO:$BUILD_NUMBER
             """
+        }
     }
-}
   
         stage('Deploy to EC2') {  
             steps {  
@@ -68,7 +68,6 @@ pipeline {
                 }  
             }  
         }  
-    }  
   
     post {  
         success {  
