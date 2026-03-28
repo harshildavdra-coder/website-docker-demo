@@ -9,7 +9,7 @@ pipeline {
         IMAGE_URI = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}:${IMAGE_TAG}"  
         LATEST_URI = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}:latest"  
         DEPLOY_SERVER = '13.232.5.50'  
-        SSH_USER = 'ubuntu'  
+        SSH_USER = 'jenkins'  
         SSH_KEY = '/var/lib/jenkins/.ssh/deploy-ec2.pem' // path to your PEM key on Jenkins server
     }  
 
