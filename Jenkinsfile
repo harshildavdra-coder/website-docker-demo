@@ -2,57 +2,72 @@ pipeline {
     agent any
 
     environment {
-        AWS_REGION = 'ap-south-1'
-        ECR_REPO = '939365918175.dkr.ecr.ap-south-1.amazonaws.com/website-docker-demo'
-        IMAGE_NAME = 'website-docker-demo'
-        EC2_USER = 'ubuntu'
-        EC2_HOST = '13.232.5.50' // replace with your EC2 public IP
+        AWS_REGION = 'us-east-1'                 // change as per your setup
+        ECR_REPO = 'your-ecr-repo-name'          // replace with your ECR repo
+        IMAGE_TAG = "${env.BUILD_NUMBER}"
+        DOCKER_IMAGE = "${ECR_REPO}:${IMAGE_TAG}"
     }
 
     stages {
-
         stage('Checkout SCM') {
             steps {
-                git branch: 'main',
-                git url: 'https://github.com/harshildavdra-coder/website-docker-demo.git',
+                git(
+                    url: 'https://github.com/harshildavdra-coder/website-docker-demo.git',
+                    branch: 'main',
                     credentialsId: 'deploy-ec2-key'
+                )
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                sh "docker build -t ${IMAGE_NAME} ."
+                script {
+                    echo "Building Docker image..."
+                    sh "docker build -t ${DOCKER_IMAGE} ."
+                }
             }
         }
 
         stage('Tag Docker Image') {
             steps {
-                sh "docker tag ${IMAGE_NAME} ${ECR_REPO}:latest"
+                script {
+                    echo "Tagging Docker image..."
+                    sh "docker tag ${DOCKER_IMAGE} ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${DOCKER_IMAGE}"
+                }
             }
         }
 
         stage('Login to ECR') {
             steps {
-                sh "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REPO}"
+                script {
+                    echo "Logging into AWS ECR..."
+                    sh """
+                        aws ecr get-login-password --region ${AWS_REGION} | \
+                        docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
+                    """
+                }
             }
         }
 
         stage('Push Docker Image') {
             steps {
-                sh "docker push ${ECR_REPO}:latest"
+                script {
+                    echo "Pushing Docker image to ECR..."
+                    sh "docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${DOCKER_IMAGE}"
+                }
             }
         }
 
         stage('Deploy to EC2') {
             steps {
-                sshagent(credentials: ['ubuntu-ec2-key']) {
+                script {
+                    echo "Deploying Docker container to EC2..."
                     sh """
-                    ssh -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} '
-                        docker pull ${ECR_REPO}:latest &&
-                        docker stop ${IMAGE_NAME} || true &&
-                        docker rm ${IMAGE_NAME} || true &&
-                        docker run -d --name ${IMAGE_NAME} -p 80:80 ${ECR_REPO}:latest
-                    '
+                        ssh -i /path/to/key.pem ec2-user@YOUR_EC2_PUBLIC_IP '
+                        docker pull ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${DOCKER_IMAGE} &&
+                        docker stop my-app || true &&
+                        docker rm my-app || true &&
+                        docker run -d --name my-app -p 80:80 ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${DOCKER_IMAGE}'
                     """
                 }
             }
@@ -60,14 +75,11 @@ pipeline {
     }
 
     post {
-        always {
-            echo 'Pipeline finished!'
-        }
         success {
-            echo 'Pipeline succeeded!'
+            echo "Pipeline completed successfully!"
         }
         failure {
-            echo 'Pipeline failed!'
+            echo "Pipeline failed!"
         }
     }
 }
