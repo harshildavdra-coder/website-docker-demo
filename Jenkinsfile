@@ -2,19 +2,19 @@ pipeline {
     agent any
 
     environment {
-        ECR_REGISTRY = "939365918175.dkr.ecr.ap-south-1.amazonaws.com"
-        IMAGE_NAME = "website-docker-demo"
-        IMAGE_TAG  = "latest"
-        EC2_USER   = "ubuntu"
-        EC2_IP     = "13.232.5.50"
-        SSH_KEY    = "/var/lib/jenkins/.ssh/deploy-ec2.pem" // Make sure this file exists
-        AWS_REGION = "ap-south-1"
+        AWS_REGION = 'ap-south-1'
+        ECR_REPO = '939365918175.dkr.ecr.ap-south-1.amazonaws.com/website-docker-demo'
+        IMAGE_NAME = 'website-docker-demo'
+        EC2_USER = 'ubuntu'
+        EC2_HOST = '13.232.5.50' // replace with your EC2 public IP
     }
 
     stages {
+
         stage('Checkout SCM') {
             steps {
-                checkout scm
+                git url: 'https://github.com/harshildavdra-coder/website-docker-demo.git',
+                    credentialsId: 'deploy-ec2-key'
             }
         }
 
@@ -26,46 +26,44 @@ pipeline {
 
         stage('Tag Docker Image') {
             steps {
-                sh """
-                    docker tag ${IMAGE_NAME} ${ECR_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}
-                    docker tag ${IMAGE_NAME} ${ECR_REGISTRY}/${IMAGE_NAME}:latest
-                """
+                sh "docker tag ${IMAGE_NAME} ${ECR_REPO}:latest"
             }
         }
 
         stage('Login to ECR') {
             steps {
-                sh """
-                    aws ecr get-login-password --region ${AWS_REGION} | \
-                    docker login --username AWS --password-stdin ${ECR_REGISTRY}
-                """
+                sh "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REPO}"
             }
         }
 
-        stage('Push Image to ECR') {
+        stage('Push Docker Image') {
             steps {
-                sh """
-                    docker push ${ECR_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}
-                    docker push ${ECR_REGISTRY}/${IMAGE_NAME}:latest
-                """
+                sh "docker push ${ECR_REPO}:latest"
             }
         }
 
         stage('Deploy to EC2') {
-    sshagent(credentials: ['ubuntu-ec2-key']) {
-        sh """
-            ssh -o StrictHostKeyChecking=no ubuntu@13.232.5.50 \\
-            'aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin 939365918175.dkr.ecr.ap-south-1.amazonaws.com && \\
-             docker pull 939365918175.dkr.ecr.ap-south-1.amazonaws.com/website-docker-demo:latest && \\
-             docker stop website-demo || true && \\
-             docker rm website-demo || true && \\
-             docker run -d --name website-demo -p 80:80 939365918175.dkr.ecr.ap-south-1.amazonaws.com/website-docker-demo:latest'
-        """
+            steps {
+                sshagent(credentials: ['ubuntu-ec2-key']) {
+                    sh """
+                    ssh -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} '
+                        docker pull ${ECR_REPO}:latest &&
+                        docker stop ${IMAGE_NAME} || true &&
+                        docker rm ${IMAGE_NAME} || true &&
+                        docker run -d --name ${IMAGE_NAME} -p 80:80 ${ECR_REPO}:latest
+                    '
+                    """
+                }
+            }
+        }
     }
-}
+
     post {
+        always {
+            echo 'Pipeline finished!'
+        }
         success {
-            echo 'Pipeline completed successfully!'
+            echo 'Pipeline succeeded!'
         }
         failure {
             echo 'Pipeline failed!'
