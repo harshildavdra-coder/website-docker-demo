@@ -51,22 +51,18 @@ pipeline {
             }
         }
 
-        stage('Deploy to EC2') {  
-            steps {  
-                sshagent(['deploy-ec2-key']) {  
-                    sh '''  
-                        ssh -o StrictHostKeyChecking=no ubuntu@$DEPLOY_SERVER "  
-                        aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com &&  
-                        docker pull $LATEST_URI &&  
-                        docker stop website-demo || true &&  
-                        docker rm website-demo || true &&  
-                        docker run -d --name website-demo -p 80:80 $LATEST_URI  
-                        "  
-                    '''  
-                }  
-            }  
-        }  
-    }  
+        stage('Deploy to EC2') {
+    sshagent(credentials: ['ubuntu-ec2-key']) {
+        sh """
+            ssh -o StrictHostKeyChecking=no ubuntu@13.232.5.50 \\
+            'aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin 939365918175.dkr.ecr.ap-south-1.amazonaws.com && \\
+             docker pull 939365918175.dkr.ecr.ap-south-1.amazonaws.com/website-docker-demo:latest && \\
+             docker stop website-demo || true && \\
+             docker rm website-demo || true && \\
+             docker run -d --name website-demo -p 80:80 939365918175.dkr.ecr.ap-south-1.amazonaws.com/website-docker-demo:latest'
+        """
+    }
+}
     post {
         success {
             echo 'Pipeline completed successfully!'
