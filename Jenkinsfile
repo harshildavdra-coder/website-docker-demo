@@ -1,12 +1,15 @@
 pipeline {
     agent any
 
-    environment {
-        AWS_REGION = 'us-east-1'                 // change as per your setup
-        ECR_REPO = 'your-ecr-repo-name'          // replace with your ECR repo
-        IMAGE_TAG = "${env.BUILD_NUMBER}"
-        DOCKER_IMAGE = "${ECR_REPO}:${IMAGE_TAG}"
-    }
+  environment {  
+        AWS_REGION = 'ap-south-1'  
+        ECR_REPO = 'website-docker-demo'  
+        AWS_ACCOUNT_ID = '939365918175'  
+        IMAGE_TAG = "${env.BUILD_NUMBER}"  
+        IMAGE_URI = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}:${IMAGE_TAG}"  
+        LATEST_URI = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}:latest"  
+        DEPLOY_SERVER = '13.232.5.50'  
+    }  
 
     stages {
         stage('Checkout SCM') {
