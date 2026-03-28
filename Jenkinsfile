@@ -13,6 +13,7 @@ pipeline {
 
         stage('Checkout SCM') {
             steps {
+                git branch: 'main',
                 git url: 'https://github.com/harshildavdra-coder/website-docker-demo.git',
                     credentialsId: 'deploy-ec2-key'
             }
